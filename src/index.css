@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    @apply bg-cream text-navy font-sans antialiased;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  .container-premium {
+    @apply max-w-[1320px] mx-auto px-5 sm:px-8 lg:px-12;
+  }
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.2em] text-champagne;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-navy text-white px-6 py-3 rounded-lg font-semibold text-sm transition-all duration-300 hover:bg-navy-600 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-champagne focus:ring-offset-2;
+  }
+  .btn-accent {
+    @apply inline-flex items-center justify-center gap-2 bg-champagne text-navy px-6 py-3 rounded-lg font-semibold text-sm transition-all duration-300 hover:bg-champagne-dark hover:text-white focus:outline-none focus:ring-2 focus:ring-champagne focus:ring-offset-2;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 border border-navy-200 text-navy px-6 py-3 rounded-lg font-semibold text-sm transition-all duration-300 hover:border-navy hover:bg-navy-50 focus:outline-none focus:ring-2 focus:ring-champagne focus:ring-offset-2;
+  }
+  .card-premium {
+    @apply bg-white rounded-2xl shadow-card border border-cream-200 overflow-hidden transition-all duration-300 hover:shadow-card-hover;
+  }
+  .input-field {
+    @apply w-full bg-cream-50 border border-cream-300 rounded-lg px-4 py-2.5 text-sm text-navy placeholder-navy-300 transition-all duration-200 focus:outline-none focus:border-champagne focus:ring-1 focus:ring-champagne;
+  }
+  .label-field {
+    @apply block text-xs font-semibold uppercase tracking-wider text-navy-400 mb-1.5;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #F3EDE3; }
+::-webkit-scrollbar-thumb { background: #C9A86A; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #A8854A; }
+
+/* Hide scrollbar for carousel */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
