@@ -1,57 +1,197 @@
+import { useEffect, useRef } from 'react'
 import SearchBar from '../components/SearchBar'
 import { ArrowRightIcon } from '../components/icons'
 import { Link } from 'react-router-dom'
 
+/**
+ * Cinematic scroll-driven Hero.
+ *
+ * A tall scroll container (210–250vh) houses a sticky 100vh panel.  As the user
+ * scrolls, a single rAF callback computes a 0→1 progress value and applies
+ * GPU-friendly transforms (opacity / translate3d / scale / filter) directly to
+ * DOM refs — no React re-renders on scroll.
+ *
+ * Progress mapping (smoothstep-eased):
+ *   0%   → video full, content visible, max immersion
+ *   50%  → video ~50% opacity, content drifting forward
+ *   75%  → video almost gone, content dominant
+ * 100%  → video gone, cream gradient hands off to next section
+ */
 export default function Hero() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const videoLayerRef = useRef<HTMLDivElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const gradientRef = useRef<HTMLDivElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  useEffect(() => {
+    const container = containerRef.current
+    const videoLayer = videoLayerRef.current
+    const overlay = overlayRef.current
+    const content = contentRef.current
+    const gradient = gradientRef.current
+    const video = videoRef.current
+
+    if (!container || !videoLayer || !overlay || !content) return
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const isMobile = window.matchMedia('(max-width: 768px)').matches
+
+    // Pause / resume video based on visibility (perf)
+    if (video) {
+      const io = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              video.play().catch(() => {})
+            } else {
+              video.pause()
+            }
+          })
+        },
+        { threshold: 0.05 },
+      )
+      io.observe(video)
+    }
+
+    // Reduced-motion: skip scroll-driven transforms, let the page scroll normally
+    if (reducedMotion) return
+
+    let rafId: number | undefined
+
+    const update = () => {
+      rafId = undefined
+      const rect = container.getBoundingClientRect()
+      const scrollRange = container.offsetHeight - window.innerHeight
+      if (scrollRange <= 0) return
+
+      const raw = Math.min(Math.max(-rect.top / scrollRange, 0), 1)
+      // smoothstep — organic, cinematic easing
+      const p = raw * raw * (3 - 2 * raw)
+
+      // Video layer — fade, scale down, drift, blur, dim
+      videoLayer.style.opacity = String(1 - p)
+      videoLayer.style.transform = `translate3d(0, ${p * (isMobile ? 20 : 40)}px, 0) scale(${1 - p * 0.08})`
+      videoLayer.style.filter = `blur(${isMobile ? 0 : p * 5}px) brightness(${1 - p * 0.4})`
+
+      // Contrast overlay — relaxes but never fully vanishes
+      overlay.style.opacity = String(1 - p * 0.5)
+
+      // Content — drifts up, subtle scale-up, stays readable
+      content.style.transform = `translate3d(0, ${-p * (isMobile ? 15 : 30)}px, 0) scale(${1 + p * 0.02})`
+
+      // Bottom gradient — fades in during the last 35% for a seamless handoff
+      if (gradient) {
+        gradient.style.opacity = String(Math.max(0, (p - 0.65) / 0.35))
+      }
+    }
+
+    const onScroll = () => {
+      if (rafId === undefined) {
+        rafId = requestAnimationFrame(update)
+      }
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll, { passive: true })
+    update()
+
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      if (rafId !== undefined) cancelAnimationFrame(rafId)
+    }
+  }, [])
+
   return (
-    <section className="relative overflow-hidden bg-cream">
-      <div className="container-premium pt-12 lg:pt-20 pb-16 lg:pb-24">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-          {/* Left: Content */}
-          <div className="order-2 lg:order-1">
-            <p className="eyebrow mb-5">PREMIUM PROPERTIES. BETTER LIVING.</p>
-            <h1 className="text-hero font-bold text-navy">
-              Find Your<br />
+    <div ref={containerRef} className="relative h-[210vh] lg:h-[250vh]">
+      <div className="sticky top-0 h-screen overflow-hidden bg-navy">
+        {/* ── Video layer ─────────────────────────────────────────── */}
+        <div
+          ref={videoLayerRef}
+          className="absolute inset-0"
+          style={{ willChange: 'transform, opacity, filter' }}
+        >
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            className="w-full h-full object-cover"
+            style={{ pointerEvents: 'none', objectPosition: 'center' }}
+          >
+            <source src="/hero-3d.mp4" type="video/mp4" />
+          </video>
+        </div>
+
+        {/* ── Cinematic overlay (contrast + vignette) ─────────────── */}
+        <div
+          ref={overlayRef}
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'linear-gradient(to bottom, rgba(14,27,42,0.55) 0%, rgba(14,27,42,0.25) 35%, rgba(14,27,42,0.35) 65%, rgba(14,27,42,0.65) 100%)',
+          }}
+        />
+
+        {/* ── Hero content ───────────────────────────────────────── */}
+        <div
+          ref={contentRef}
+          className="relative h-full flex flex-col items-center justify-center text-center px-4"
+          style={{ willChange: 'transform' }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <p className="eyebrow mb-5 text-champagne-light">PREMIUM PROPERTIES. BETTER LIVING.</p>
+            <h1
+              className="text-hero font-bold text-white"
+              style={{ textShadow: '0 2px 24px rgba(0,0,0,0.35)' }}
+            >
+              Find Your
+              <br />
               Dream Home{' '}
-              <span className="font-script text-champagne-dark text-5xl lg:text-6xl">with Everlight</span>
+              <span className="font-script text-champagne-light text-5xl lg:text-6xl">
+                with Everlight
+              </span>
             </h1>
-            <p className="text-lg text-navy-300 mt-6 max-w-md leading-relaxed">
-              Discover modern homes, prime locations, and lifestyle-driven communities — all in one place.
+            <p
+              className="text-lg text-cream-100/90 mt-6 max-w-md mx-auto leading-relaxed"
+              style={{ textShadow: '0 1px 12px rgba(0,0,0,0.3)' }}
+            >
+              Discover modern homes, prime locations, and lifestyle-driven communities — all in one
+              place.
             </p>
-            <div className="flex flex-wrap gap-3 mt-8">
-              <Link to="/properties" className="btn-primary">
+            <div className="flex flex-wrap gap-3 mt-8 justify-center">
+              <Link to="/properties" className="btn-accent">
                 Browse Properties <ArrowRightIcon className="w-4 h-4" />
               </Link>
-              <Link to="/contact" className="btn-outline">Talk to an Expert</Link>
+              <Link
+                to="/contact"
+                className="inline-flex items-center justify-center gap-2 border border-white/30 text-white px-6 py-3 rounded-lg font-semibold text-sm transition-all duration-300 hover:bg-white/10"
+              >
+                Talk to an Expert
+              </Link>
             </div>
           </div>
 
-          {/* Right: Image */}
-          <div className="order-1 lg:order-2 relative">
-            <div className="relative rounded-3xl overflow-hidden h-72 sm:h-96 lg:h-[520px] shadow-premium">
-              <img
-                src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80"
-                alt="Luxury villa at sunset"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-navy/30 to-transparent" />
-            </div>
-            {/* Floating stat card */}
-            <div className="absolute -bottom-6 -left-4 sm:left-6 bg-white rounded-2xl shadow-premium p-4 sm:p-5 flex items-center gap-4 max-w-[260px]">
-              <div className="w-12 h-12 rounded-xl bg-champagne/20 flex items-center justify-center text-champagne-dark font-bold text-lg">98%</div>
-              <div>
-                <div className="font-bold text-navy text-sm">Success Rate</div>
-                <div className="text-xs text-navy-300">Happy clients finding homes</div>
-              </div>
-            </div>
+          {/* Search bar */}
+          <div className="w-full max-w-4xl mt-10 lg:mt-12 relative mx-auto">
+            <SearchBar />
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="relative mt-12 lg:mt-16">
-          <SearchBar />
-        </div>
+        {/* ── Bottom gradient → seamless handoff to next section ──── */}
+        <div
+          ref={gradientRef}
+          className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none"
+          style={{
+            background: 'linear-gradient(to bottom, transparent, #F9F6F1)',
+            opacity: 0,
+          }}
+        />
       </div>
-    </section>
+    </div>
   )
 }
